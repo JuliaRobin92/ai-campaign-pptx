@@ -1,0 +1,42 @@
+name: Generate PPTX on Dispatch
+
+on:
+  repository_dispatch:
+    types: [generate-pptx]
+
+jobs:
+  build-pptx:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Node.js & pptxgenjs
+        uses: actions/setup-node@v3
+        with: node-version: '18'
+      - run: npm install pptxgenjs
+
+      - name: Read slides.json
+        id: slides
+        run: |
+          SLIDES="$(cat slides.json)"
+          echo "::set-output name=data::$SLIDES"
+
+      - name: Generate PPTX
+        run: |
+          mkdir -p out
+          node generate-pptx.mjs "${{ steps.slides.outputs.data }}" out/concept.pptx
+
+      - name: Commit PPTX
+        run: |
+          git config user.name "n8n Bot"
+          git config user.email "bot@you.com"
+          git add out/concept.pptx
+          git commit -m "Auto-generated deck"
+          git push
+
+      - name: Create release asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: out/concept.pptx
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
